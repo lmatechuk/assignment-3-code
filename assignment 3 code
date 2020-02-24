@@ -1,0 +1,178 @@
+# import arcpy
+import arcpy
+
+arcpy.env.overwriteOutput = True 
+
+
+# create new gdb
+
+arcpy.CreateFileGDB_management(r"E:\428\Assignment_3",'project_3.gdb')
+print("gdb created")
+
+# set workspace
+arcpy.env.workspace = (r"E:\428\Assignment_3\project_3.gdb")
+
+#import feature classes
+
+arcpy.conversion.FeatureClassToFeatureClass(r"E:\428\Assignment_3\Data\HOSPITALS_point.shp","","hospitals")
+arcpy.conversion.FeatureClassToFeatureClass(r"E:\428\Assignment_3\Data\NRC_POPULATED_PLACES_1M_SP\POP_PL_1M_point.shp","","popPlaces")
+
+#Make variables
+
+hospital = r"E:\428\Assignment_3\project_3.gdb\hospitals"
+popPlaces = r"E:\428\Assignment_3\project_3.gdb\popPlaces"
+popCol = "EST_POP"
+cityNames = "NAME"
+city = "Lister"
+
+# Search Cursor
+
+totalPopulation = 0
+recordsCounted = 0
+average = 0
+
+with arcpy.da.SearchCursor(popPlaces,(popCol)) as cursor:
+ for row in cursor:
+  totalPopulation += row[0]
+  recordsCounted += 1
+
+  average = totalPopulation / recordsCounted
+print ("Average population for all cities is " + str(average))
+
+print ("Task 4 Complete")
+
+# Nearest Hospital
+
+arcpy.analysis.Near(popPlaces,hospital)
+
+nearestHospital = "NEAR_DIST"
+
+#Where Clause
+
+whereCity = cityNames+" ='"+city+"'"
+
+print (whereCity)
+
+#Calculating population of Lister and minimum/maximum population
+
+totalPopulation1 = 0
+recordsCounted1 = 0
+minPop = 0
+maxPop = 0
+
+with arcpy.da.SearchCursor(popPlaces,(popCol),whereCity) as cursor:
+ for row in cursor:
+  totalPopulation1 += row[0]
+  recordsCounted1 += 1
+  Listerpop = totalPopulation1
+  minPop = .9 * totalPopulation1
+  maxPop = totalPopulation1 + .10 * totalPopulation1
+
+print ("Total population for Lister is " + str(Listerpop))
+print ("Minimum Population for Lister is " + str(minPop))
+print ("Maximum Population for Lister is " + str(maxPop))
+
+nearestHospital1 = 0
+recordsCounted2 = 0
+nearestHospital2 = 0
+
+#Nearest Distance to Hosptial 
+
+with arcpy.da.SearchCursor(popPlaces,(nearestHospital),whereCity) as cursor:
+ for row in cursor:
+  nearestHospital1 += row[0]
+  recordsCounted2 += 1
+  
+
+print ("Nearest hosptial in metres is " + str(nearestHospital1))
+
+#Task 6
+
+#Select cities +/- 10% below and above Lister population
+
+cities = 0
+numberOfCities = 0
+allDist = 0
+
+wherePop = (popCol +" >=" + str(minPop) + " AND "+ popCol + " <=" +str(maxPop))
+
+with arcpy.da.SearchCursor("popPlaces", (nearestHospital), wherePop) as cursor:
+  for row in cursor:
+   numberOfCities += 1                        
+   allDist += row[0]
+avgDist = allDist/numberOfCities
+                           
+print ("Number of cities +/- 10% below and above Lister population is " + str(numberOfCities) + "Total Distance of near hosptials is " +str(avgDist))
+
+#Task 7
+
+# Create Fields
+
+arcpy.AddField_management("popPlaces", "Small_Cities", "TEXT")
+arcpy.AddField_management("popPlaces", "Medium_Cities", "TEXT")
+arcpy.AddField_management("popPlaces", "Large_Cities", "TEXT")
+
+#Assign Variables
+
+small = "Small_Cities"
+smallPop = (popCol + "<= 500")
+
+medium = "Medium_Cities"
+mediumPop = (popCol +"> 500" + " AND " + popCol + "<=10000")
+
+large = "Large_Cities"
+largePop = (popCol +">10000")
+
+#Calculate Small Cities
+
+with arcpy.da.UpdateCursor("popPlaces",(nearestHospital,small), smallPop) as cursor:
+ for row in cursor:
+  if row[0] <= 1000:
+   row[1] = "VERY CLOSE"
+  elif row[0] > 1000 and row[0] < 10000:
+   row[1] = 'CLOSE'
+  else:
+   row[1] = 'FAR'
+  cursor.updateRow(row)
+
+#Calculate Medium Cities
+
+with arcpy.da.UpdateCursor("popPlaces",(nearestHospital,medium), mediumPop) as cursor:
+ for row in cursor:
+  if row[0] <= 1000:
+   row[1] = "VERY CLOSE"
+  elif row[0] > 1000 and row[0] < 10000:
+   row[1] = 'CLOSE'
+  else:
+   row[1] = 'FAR'
+  cursor.updateRow(row)
+
+#Calculate Large Cities
+
+with arcpy.da.UpdateCursor("popPlaces",(nearestHospital,large), largePop) as cursor:
+ for row in cursor:
+  if row[0] <= 1000:
+   row[1] = "VERY CLOSE"
+  elif row[0] > 1000 and row[0] < 10000:
+   row[1] = 'CLOSE'
+  else:
+   row[1] = 'FAR'
+  cursor.updateRow(row)
+  
+
+# Arcpy to excel conversion
+
+
+arcpy.TableToExcel_conversion(popPlaces, r"E:\428\Assignment_3\popPlacesTable.xlsx")
+
+  
+
+
+
+
+
+
+
+
+
+                               
